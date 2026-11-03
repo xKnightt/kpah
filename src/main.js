@@ -27,24 +27,48 @@ function fit(){
 }
 window.addEventListener('resize',fit);
 window.visualViewport?.addEventListener('resize',fit);
-const codeFor=(key)=>({e:69,r:82,F1:112,F2:113,Enter:13,Backspace:8,ArrowUp:38,ArrowDown:40,ArrowLeft:37,ArrowRight:39})[key]||codeMap[key]||(key.length===1?key.toUpperCase().charCodeAt(0):0);
+// MIDP phone special keys: STAR=42, POUND=35. Never alias them to E/R.
+const codeFor=(key)=>({'*':42,'#':35,'F1':112,'F2':113,Enter:13,Backspace:8,ArrowUp:38,ArrowDown:40,ArrowLeft:37,ArrowRight:39})[key]??codeMap[key]??(key.length===1?key.toUpperCase().charCodeAt(0):0);
 const held=new Set();function push(key,down){const code=codeFor(key);if(!code)return;if(down&&held.has(key))return;if(!down&&!held.has(key))return;down?held.add(key):held.delete(key);queue.queueEvent({kind:down?'keydown':'keyup',args:[code,key.length===1?key:'\0',false,false]});}
 for(const b of document.querySelectorAll('[data-key]')){
  const key=b.dataset.key;
  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);b.classList.add('pressed');push(key,true)});
  for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,e=>{e.preventDefault();b.classList.remove('pressed');push(key,false)});
 }
-window.addEventListener('keydown',e=>{if(e.target.matches?.('input,textarea'))return;const k=e.key.toLowerCase()==='e'?'e':e.key.toLowerCase()==='r'?'r':e.key;if(codeFor(k)){e.preventDefault();push(k,true)}});
-window.addEventListener('keyup',e=>{const k=e.key.toLowerCase()==='e'?'e':e.key.toLowerCase()==='r'?'r':e.key;if(codeFor(k)){e.preventDefault();push(k,false)}});
+window.addEventListener('keydown',e=>{if(e.target.matches?.('input,textarea'))return;const k=e.key==='*'?'*':e.key==='#'?'#':e.key;if(codeFor(k)){e.preventDefault();push(k,true)}});
+window.addEventListener('keyup',e=>{const k=e.key==='*'?'*':e.key==='#'?'#':e.key;if(codeFor(k)){e.preventDefault();push(k,false)}});
 window.addEventListener('blur',()=>{for(const k of [...held])push(k,false)});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)for(const k of [...held])push(k,false)});
+// iOS suspends PWAs when sent to background; JavaScript cannot force execution there.
+// On return, release stale inputs, refresh the canvas layout and restore focus.
+let backgroundedAt=0;
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){backgroundedAt=Date.now();for(const k of [...held])push(k,false);return;}
+ requestAnimationFrame(()=>{fit();display.focus({preventScroll:true});});
+});
+window.addEventListener('pageshow',()=>requestAnimationFrame(()=>{fit();display.focus({preventScroll:true});}));
+window.addEventListener('focus',()=>requestAnimationFrame(()=>{fit();display.focus({preventScroll:true});}));
 // Map touch on game canvas to MIDP pointer coordinates.
 let touchActive=false;function coords(e){let r=display.getBoundingClientRect();return{x:Math.max(0,Math.min(display.width-1,Math.floor((e.clientX-r.left)*display.width/r.width))),y:Math.max(0,Math.min(display.height-1,Math.floor((e.clientY-r.top)*display.height/r.height)))}};
 display.addEventListener('pointerdown',e=>{e.preventDefault();touchActive=true;display.setPointerCapture(e.pointerId);queue.queueEvent({kind:'pointerpressed',...coords(e)})});
 display.addEventListener('pointermove',e=>{if(touchActive)queue.queueEvent({kind:'pointerdragged',...coords(e)})});
 for(const ev of ['pointerup','pointercancel'])display.addEventListener(ev,e=>{if(touchActive){touchActive=false;queue.queueEvent({kind:'pointerreleased',...coords(e)})}});
 function error(e){console.error(e);const msg=String(e?.message||e);loading.style.display='none';document.getElementById('errorText').textContent='Lỗi Java ME: '+msg;document.getElementById('diag').classList.add('show')}
-async function start(){
+const DB_NAME='nqshvn-local-jars-v1', STORE='jars';
+function openJarDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE,{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function dbAll(){const db=await openJarDB();return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);});}
+async function dbPut(item){const db=await openJarDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(item);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+async function dbDelete(id){const db=await openJarDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});}
+let selectedJar=null;
+const picker=document.getElementById('jarPicker'), list=document.getElementById('jarList'), launchBtn=document.getElementById('startGame');
+function safeText(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));}
+async function renderJarList(){const items=await dbAll();list.innerHTML='';if(!items.length){list.innerHTML='<div style="padding:12px;border-radius:9px;background:#0b1320;color:#9eacc0;font-size:12px">Chưa có JAR. Hãy thêm file từ thiết bị.</div>';selectedJar=null;launchBtn.disabled=true;launchBtn.textContent='CHỌN JAR ĐỂ CHƠI';return;}
+ for(const item of items){const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;padding:10px;background:#0b1320;border:1px solid #30435d;border-radius:9px';const radio=document.createElement('input');radio.type='radio';radio.name='selectedJar';radio.value=item.id;radio.checked=selectedJar===item.id;radio.addEventListener('change',()=>{selectedJar=item.id;launchBtn.disabled=false;launchBtn.textContent='CHƠI: '+item.name;});const label=document.createElement('div');label.style.cssText='flex:1;min-width:0;font-size:12px;overflow-wrap:anywhere';label.innerHTML='<b>'+safeText(item.name)+'</b><div style="color:#91a3bd">'+(item.size/1048576).toFixed(2)+' MB</div>';const del=document.createElement('button');del.textContent='Xóa';del.style.cssText='border:0;border-radius:7px;padding:7px 9px;background:#472b35;color:#ffdce2';del.addEventListener('click',async()=>{await dbDelete(item.id);if(selectedJar===item.id)selectedJar=null;renderJarList();});row.append(radio,label,del);list.append(row);}
+ if(!selectedJar||!items.some(x=>x.id===selectedJar))selectedJar=items[0].id;const r=[...list.querySelectorAll('input')].find(x=>x.value===selectedJar);if(r)r.checked=true;launchBtn.disabled=false;launchBtn.textContent='CHƠI: '+items.find(x=>x.id===selectedJar).name;
+}
+picker.addEventListener('change',async()=>{for(const f of picker.files||[]){if(!f.name.toLowerCase().endsWith('.jar'))continue;if(f.size>100*1024*1024){alert('File vượt quá 100 MB: '+f.name);continue;}const id=crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random();await dbPut({id,name:f.name,size:f.size,blob:f,lastUsed:Date.now()});selectedJar=id;}picker.value='';await renderJarList();});
+renderJarList().catch(e=>{document.getElementById('jarNote').textContent='Không mở được bộ nhớ JAR: '+e.message;});
+launchBtn.addEventListener('click',async()=>{const items=await dbAll();const item=items.find(x=>x.id===selectedJar);if(!item)return;const bytes=new Uint8Array(await item.blob.arrayBuffer());document.getElementById('launcher').style.display='none';document.getElementById('screen-area').style.display='flex';document.getElementById('loading').style.display='block';start(item.name,bytes);});
+async function start(jarName,jarBytes){
 try{
  status('1/3 • Khởi tạo CheerpJ…');
  if(typeof cheerpjInit!=='function')throw Error('Không tải được CheerpJ loader (cần Internet).');
@@ -73,11 +97,13 @@ try{
  }});
  status('2/3 • Tải FreeJ2ME runtime…');
  const lib=await cheerpjRunLibrary('/app/freej2me-web.jar');
- status('3/3 • Khởi động NQSHVN…');
+ status('3/3 • Nạp '+jarName+'…');
+ if(typeof cheerpOSAddStringFile!=='function')throw Error('Runtime không hỗ trợ nạp JAR từ thiết bị.');
+ const safeJarName='selected-'+jarName.replace(/[^a-zA-Z0-9._-]/g,'_');
+ cheerpOSAddStringFile('/str/'+safeJarName,jarBytes);
  const System=await lib.java.lang.System;
  await System.setProperty('freej2me.width','360');await System.setProperty('freej2me.height','480');
  await System.setProperty('freej2me.fps','30');await System.setProperty('freej2me.sound','off');
  const FreeJ2ME=await lib.org.recompile.freej2me.FreeJ2ME;
- FreeJ2ME.main(['jar','/app/NQSHVN-FULL.jar']).catch(error);
+ FreeJ2ME.main(['jar','/str/'+safeJarName]).catch(error);
 }catch(e){error(e)}}
-start();

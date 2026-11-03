@@ -58,7 +58,7 @@ async def bridge(request):
         reader,writer=await asyncio.wait_for(asyncio.open_connection(host,port),timeout=8)
     except Exception as e:
         raise web.HTTPBadGateway(text=f'Game server unavailable: {type(e).__name__}')
-    ws=web.WebSocketResponse(heartbeat=20,max_msg_size=1024*1024)
+    ws=web.WebSocketResponse(heartbeat=90,max_msg_size=1024*1024)
     await ws.prepare(request)
     async def tcp_to_web():
         try:
