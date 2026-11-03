@@ -46,3 +46,12 @@ The game HUD is explicitly switched to `display:grid` after the Java ME canvas r
 - Directional keys are larger with wider spacing and rounded styling for easier movement/combat.
 - Minimal layout remains only `*` and `#`.
 - Settings are stored locally on the device.
+
+
+## V13 – iPhone direct-WebSocket experiment
+- Based on V12.1. Existing PWA, CheerpJ, JAR library, W/H settings and key layouts are retained.
+- Default transport remains the existing same-origin `/ws` TCP bridge so the current game path is preserved.
+- Adds an on-device test for `wss://ip.nqshvn.com:19129` and an optional experimental direct transport mode.
+- Direct mode only works if the game server port actually implements a compatible WebSocket-over-TLS endpoint. The known JAR target is TCP `ip.nqshvn.com:19129`; a normal TCP service will fail the WebSocket handshake.
+- A successful WebSocket handshake alone does not prove compatibility with the game's TCP byte stream or authentication protocol.
+- If direct test fails, switch Network Mode back to `Ổn định – TCP Bridge hiện tại`; no game JAR changes are required.

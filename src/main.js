@@ -107,6 +107,20 @@ saveResolution.addEventListener('click',()=>{
 });
 keyLayout.addEventListener('change',()=>{localStorage.setItem('nqshvn-key-layout',keyLayout.value);renderKeyLayout();});
 
+// V13 direct-WebSocket experiment. Default remains the proven TCP bridge.
+const networkMode=document.getElementById('networkMode');
+const directTestBtn=document.getElementById('directTestBtn');
+const directTestResult=document.getElementById('directTestResult');
+networkMode.value=localStorage.getItem('nqshvn-network-mode')||'proxy';
+networkMode.addEventListener('change',()=>localStorage.setItem('nqshvn-network-mode',networkMode.value));
+directTestBtn.addEventListener('click',()=>{
+ directTestBtn.disabled=true;directTestResult.textContent='Đang thử TLS + WebSocket handshake tới wss://ip.nqshvn.com:19129 …';
+ let ws,done=false;
+ const finish=(ok,msg)=>{if(done)return;done=true;clearTimeout(timer);try{ws?.close();}catch(_){}directTestBtn.disabled=false;directTestResult.textContent=msg;directTestResult.style.color=ok?'#7ee0a4':'#ffb0a8';};
+ const timer=setTimeout(()=>finish(false,'Không nhận được WebSocket handshake trong 8 giây. Nhiều khả năng cổng 19129 chỉ nhận TCP game, không nhận WebSocket.'),8000);
+ try{ws=new WebSocket('wss://ip.nqshvn.com:19129');ws.binaryType='arraybuffer';ws.onopen=()=>finish(true,'WebSocket handshake thành công. Cần kiểm tra tiếp framing và giao thức game trước khi kết luận có thể bỏ proxy.');ws.onerror=()=>finish(false,'WebSocket trực tiếp thất bại. Có thể server chỉ hỗ trợ TCP thuần, TLS/certificate không phù hợp hoặc chặn WebSocket. Hãy chuyển lại TCP Bridge để chơi.');ws.onclose=e=>{if(!done)finish(false,'Kết nối đóng trước khi handshake hoàn tất (mã '+e.code+').');};}catch(e){finish(false,'Không tạo được WebSocket: '+e.message);}
+});
+
 async function start(jarName,jarBytes){
 try{
  status('1/3 • Khởi tạo CheerpJ…');

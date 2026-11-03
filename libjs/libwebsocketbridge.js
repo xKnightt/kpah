@@ -4,13 +4,16 @@ const sockets=new Map();let idSeq=1;
 export default {
   async Java_org_recompile_mobile_WebSocketBridge_connect(lib,host,port){
     const addr=typeof host==='string'?host:String(await host?.toString?.()||'');
+    const direct=localStorage.getItem('nqshvn-network-mode')==='direct';
     const proto=location.protocol==='https:'?'wss:':'ws:';
-    const url=`${proto}//${location.host}/ws?host=${encodeURIComponent(addr)}&port=${encodeURIComponent(port)}`;
+    const url=direct
+      ? 'wss://ip.nqshvn.com:19129'
+      : `${proto}//${location.host}/ws?host=${encodeURIComponent(addr)}&port=${encodeURIComponent(port)}`;
     return await new Promise((resolve,reject)=>{
       const ws=new WebSocket(url);ws.binaryType='arraybuffer';
       const s={ws,queue:[],offset:0,wait:null,closed:false};
-      ws.onopen=()=>{const id=idSeq++;sockets.set(id,s);console.info('[NQSHVN] TCP bridge connected',addr,port);resolve(id)};
-      ws.onerror=()=>{s.closed=true;s.wait?.();console.error('[NQSHVN] WebSocket bridge failed:',url);reject(Error('Không kết nối được TCP proxy /ws. Hãy chạy bản V7 trên hosting Python, không phải Netlify Drop.'))};
+      ws.onopen=()=>{const id=idSeq++;sockets.set(id,s);console.info(direct?'[NQSHVN] Direct WebSocket connected':'[NQSHVN] TCP bridge connected',addr,port);resolve(id)};
+      ws.onerror=()=>{s.closed=true;s.wait?.();console.error('[NQSHVN] WebSocket bridge failed:',url);reject(Error(direct?'Không thể mở WebSocket trực tiếp tới ip.nqshvn.com:19129. Hãy quay lại chế độ TCP Bridge.':'Không kết nối được TCP proxy /ws. Hãy kiểm tra hosting Python và endpoint /ws.'))};
       ws.onclose=()=>{s.closed=true;s.wait?.()};
       ws.onmessage=e=>{if(e.data instanceof ArrayBuffer){s.queue.push(new Uint8Array(e.data));s.wait?.();s.wait=null}}
     });

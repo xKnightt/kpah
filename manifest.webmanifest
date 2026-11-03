@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "NQSHVN — Multi-JAR Java ME",
-  "short_name": "NQSHVN",
-  "description": "NQSHVN Java ME trên iPhone",
+  "name": "NQSHVN Direct Test V13 — Multi-JAR Java ME",
+  "short_name": "NQSHVN Direct Test V13",
+  "description": "NQSHVN Direct Test V13 Java ME trên iPhone",
   "start_url": "/?pwa=1",
   "scope": "/",
   "display": "fullscreen",
