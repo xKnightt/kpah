@@ -29,12 +29,35 @@ window.addEventListener('resize',fit);
 window.visualViewport?.addEventListener('resize',fit);
 // MIDP phone special keys: STAR=42, POUND=35. Never alias them to E/R.
 const codeFor=(key)=>({'*':42,'#':35,'F1':112,'F2':113,Enter:13,Backspace:8,ArrowUp:38,ArrowDown:40,ArrowLeft:37,ArrowRight:39})[key]??codeMap[key]??(key.length===1?key.toUpperCase().charCodeAt(0):0);
-const held=new Set();function push(key,down){const code=codeFor(key);if(!code)return;if(down&&held.has(key))return;if(!down&&!held.has(key))return;down?held.add(key):held.delete(key);queue.queueEvent({kind:down?'keydown':'keyup',args:[code,key.length===1?key:'\0',false,false]});}
-for(const b of document.querySelectorAll('[data-key]')){
- const key=b.dataset.key;
- b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);b.classList.add('pressed');push(key,true)});
- for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,e=>{e.preventDefault();b.classList.remove('pressed');push(key,false)});
+const held=new Set();
+function push(key,down){
+ const code=codeFor(key);if(!code)return;
+ if(down&&held.has(key))return;if(!down&&!held.has(key))return;
+ down?held.add(key):held.delete(key);
+ queue.queueEvent({kind:down?'keydown':'keyup',args:[code,key.length===1?key:'\\0',false,false]});
 }
+function bindControlButtons(){
+ for(const b of document.querySelectorAll('#hud [data-key]')){
+  if(b.dataset.bound==='1')continue;b.dataset.bound='1';
+  const key=b.dataset.key;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture?.(e.pointerId);b.classList.add('pressed');push(key,true)});
+  for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,e=>{e.preventDefault();b.classList.remove('pressed');push(key,false)});
+ }
+}
+function renderKeyLayout(){
+ const hud=document.getElementById('hud');
+ const layout=localStorage.getItem('nqshvn-key-layout')||'minimal';
+ hud.classList.toggle('full',layout==='full');
+ if(layout==='full'){
+  hud.innerHTML='<button class="k soft" data-key="F1" aria-label="Phím chức năng trái">L</button><button class="k" data-key="ArrowUp" aria-label="Lên">▲</button><button class="k soft" data-key="F2" aria-label="Phím chức năng phải">R</button>'+
+   '<button class="k" data-key="ArrowLeft" aria-label="Trái">◀</button><button class="k ok" data-key="Enter" aria-label="OK">OK</button><button class="k" data-key="ArrowRight" aria-label="Phải">▶</button>'+
+   '<button class="k soft" data-key="*" aria-label="Phím sao">*</button><button class="k" data-key="ArrowDown" aria-label="Xuống">▼</button><button class="k soft" data-key="#" aria-label="Phím thăng">#</button>';
+ }else{
+  hud.innerHTML='<button class="k soft" data-key="*" aria-label="Phím sao">*</button><button class="k soft" data-key="#" aria-label="Phím thăng">#</button>';
+ }
+ bindControlButtons();
+}
+renderKeyLayout();
 window.addEventListener('keydown',e=>{if(e.target.matches?.('input,textarea'))return;const k=e.key==='*'?'*':e.key==='#'?'#':e.key;if(codeFor(k)){e.preventDefault();push(k,true)}});
 window.addEventListener('keyup',e=>{const k=e.key==='*'?'*':e.key==='#'?'#':e.key;if(codeFor(k)){e.preventDefault();push(k,false)}});
 window.addEventListener('blur',()=>{for(const k of [...held])push(k,false)});
@@ -67,7 +90,23 @@ async function renderJarList(){const items=await dbAll();list.innerHTML='';if(!i
 }
 picker.addEventListener('change',async()=>{for(const f of picker.files||[]){if(!f.name.toLowerCase().endsWith('.jar'))continue;if(f.size>100*1024*1024){alert('File vượt quá 100 MB: '+f.name);continue;}const id=crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random();await dbPut({id,name:f.name,size:f.size,blob:f,lastUsed:Date.now()});selectedJar=id;}picker.value='';await renderJarList();});
 renderJarList().catch(e=>{document.getElementById('jarNote').textContent='Không mở được bộ nhớ JAR: '+e.message;});
-launchBtn.addEventListener('click',async()=>{const items=await dbAll();const item=items.find(x=>x.id===selectedJar);if(!item)return;const bytes=new Uint8Array(await item.blob.arrayBuffer());document.getElementById('launcher').style.display='none';document.getElementById('screen-area').style.display='flex';document.getElementById('loading').style.display='block';start(item.name,bytes);});
+launchBtn.addEventListener('click',async()=>{const items=await dbAll();const item=items.find(x=>x.id===selectedJar);if(!item)return;const bytes=new Uint8Array(await item.blob.arrayBuffer());document.getElementById('launcher').style.display='none';document.getElementById('screen-area').style.display='flex';document.getElementById('loading').style.display='block';renderKeyLayout();start(item.name,bytes);});
+const screenSettingsBtn=document.getElementById('screenSettingsBtn'),keySettingsBtn=document.getElementById('keySettingsBtn');
+screenSettingsBtn.addEventListener('click',()=>document.getElementById('screenSettings').classList.toggle('open'));
+keySettingsBtn.addEventListener('click',()=>document.getElementById('keySettings').classList.toggle('open'));
+const jarWidthInput=document.getElementById('jarWidth'),jarHeightInput=document.getElementById('jarHeight');
+const keyLayout=document.getElementById('keyLayout'),saveResolution=document.getElementById('saveResolution');
+jarWidthInput.value=localStorage.getItem('nqshvn-width')||'360';
+jarHeightInput.value=localStorage.getItem('nqshvn-height')||'480';
+keyLayout.value=localStorage.getItem('nqshvn-key-layout')||'minimal';
+saveResolution.addEventListener('click',()=>{
+ const w=Number(jarWidthInput.value),h=Number(jarHeightInput.value);
+ if(!Number.isInteger(w)||!Number.isInteger(h)||w<120||h<120||w>1200||h>1600){alert('W phải từ 120–1200 và H từ 120–1600 pixel.');return;}
+ localStorage.setItem('nqshvn-width',String(w));localStorage.setItem('nqshvn-height',String(h));
+ saveResolution.textContent='Đã lưu ✓';setTimeout(()=>saveResolution.textContent='Lưu kích thước',1400);
+});
+keyLayout.addEventListener('change',()=>{localStorage.setItem('nqshvn-key-layout',keyLayout.value);renderKeyLayout();});
+
 async function start(jarName,jarBytes){
 try{
  status('1/3 • Khởi tạo CheerpJ…');
@@ -102,7 +141,9 @@ try{
  const safeJarName='selected-'+jarName.replace(/[^a-zA-Z0-9._-]/g,'_');
  cheerpOSAddStringFile('/str/'+safeJarName,jarBytes);
  const System=await lib.java.lang.System;
- await System.setProperty('freej2me.width','360');await System.setProperty('freej2me.height','480');
+ const jarWidth=localStorage.getItem('nqshvn-width')||'360';
+ const jarHeight=localStorage.getItem('nqshvn-height')||'480';
+ await System.setProperty('freej2me.width',jarWidth);await System.setProperty('freej2me.height',jarHeight);
  await System.setProperty('freej2me.fps','30');await System.setProperty('freej2me.sound','off');
  const FreeJ2ME=await lib.org.recompile.freej2me.FreeJ2ME;
  FreeJ2ME.main(['jar','/str/'+safeJarName]).catch(error);

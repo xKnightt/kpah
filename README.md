@@ -25,3 +25,24 @@
 - Chỉ JAR có cấu trúc MIDlet/FreeJ2ME tương thích mới chạy được. Các phiên bản có server/config khác nhau có thể cần cấu hình mạng tương ứng.
 - Giữ nguyên `server.py`, `render.yaml`, runtime và proxy từ V10. Không deploy gói tĩnh lên Netlify nếu cần WebSocket/TCP proxy.
 - Chưa kiểm thử trực tiếp trên iPhone 16 Pro; cần xác minh từng JAR, nhất là MIDlet manifest và tài nguyên phụ.
+
+
+## V11.1 hotfix – two control keys
+The game HUD is explicitly switched to `display:grid` after the Java ME canvas reports its ready size. This fixes the V11 issue where the `*` and `#` controls existed in HTML but remained hidden because their initial inline style was `display:none`. The keys retain MIDP key codes STAR=42 and POUND=35.
+
+
+## V12 – Performance and controls
+- Adds launcher settings for Java ME canvas resolution (default 360x480; optional 240x320 and 480x640).
+- Adds two control layouts: minimal `*`/`#`, and a 3x3 full keypad with Up/Down/Left/Right/OK plus `*` and `#`.
+- Preferences are stored locally in the browser via localStorage; additional JAR files remain in IndexedDB on that device.
+- TCP proxy enables TCP_NODELAY for small real-time packets and disables WebSocket per-message compression to avoid unnecessary CPU work.
+- Network diagnostics include TCP connection-establishment time. This is not the same as in-game ping or end-to-end latency.
+- No proxy-side packet batching, buffering delay, packet rewriting, or protocol changes are introduced. Server-side monster/map spawn pacing and Java game logic cannot be accelerated by the proxy if the game server sends data slowly.
+
+
+## V12.1 – Custom W/H and complete keypad
+- Replaces preset resolution choices with user-entered W and H fields. Default remains 360x480; width range 120–1200 and height range 120–1600.
+- Full keypad now has nine visible controls: L soft key (F1), Up, R soft key (F2), Left, OK, Right, Star, Down, Pound.
+- Directional keys are larger with wider spacing and rounded styling for easier movement/combat.
+- Minimal layout remains only `*` and `#`.
+- Settings are stored locally on the device.

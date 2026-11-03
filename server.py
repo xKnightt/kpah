@@ -33,8 +33,12 @@ async def network_diagnostic(request):
         result['detail']=f'DNS: {type(e).__name__}'
     if result['dns']=='ok':
         try:
+            t0=time.perf_counter()
             reader,writer=await asyncio.wait_for(asyncio.open_connection(host,port),timeout=6)
             result['tcp']='ok'
+            result['tcp_connect_ms']=round((time.perf_counter()-t0)*1000,1)
+            sock=writer.get_extra_info('socket')
+            if sock is not None:sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
             writer.close();await writer.wait_closed()
         except Exception as e:
             result['tcp']='failed'
@@ -55,10 +59,14 @@ async def bridge(request):
         if urlsplit(origin).netloc != request.host:
             raise web.HTTPForbidden(text='Cross-origin WebSocket not allowed')
     try:
-        reader,writer=await asyncio.wait_for(asyncio.open_connection(host,port),timeout=8)
+        reader,writer=await asyncio.wait_for(asyncio.open_connection(host,port,limit=65536),timeout=8)
+        # Small real-time game packets should not wait for Nagle aggregation.
+        tcp_sock=writer.get_extra_info('socket')
+        if tcp_sock is not None:
+            tcp_sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
     except Exception as e:
         raise web.HTTPBadGateway(text=f'Game server unavailable: {type(e).__name__}')
-    ws=web.WebSocketResponse(heartbeat=90,max_msg_size=1024*1024)
+    ws=web.WebSocketResponse(heartbeat=30,max_msg_size=1024*1024,compress=False)
     await ws.prepare(request)
     async def tcp_to_web():
         try:
