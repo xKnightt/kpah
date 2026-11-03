@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: nqshvn-game-web
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    envVars:
+      - key: ALLOWED_GAME_HOSTS
+        value: ip.nqshvn.com
+      - key: ALLOWED_GAME_PORTS
+        value: "19129"
