@@ -76,7 +76,7 @@ try{
   async Java_pl_zb3_freej2me_bridge_shell_Shell_setTitle(lib,title){document.title=String(title)+' — NQSHVN'},
   async Java_pl_zb3_freej2me_bridge_shell_Shell_setIcon(lib,iconBytes){},
   async Java_pl_zb3_freej2me_bridge_shell_Shell_getScreenCtx(lib){return ctx},
-  async Java_pl_zb3_freej2me_bridge_shell_Shell_setCanvasSize(lib,w,h){display.width=w;display.height=h;ctx.imageSmoothingEnabled=false;display.style.display='block';ready=true;loading.style.display='none';document.body.classList.add('playing');fit()},
+  async Java_pl_zb3_freej2me_bridge_shell_Shell_setCanvasSize(lib,w,h){display.width=w;display.height=h;ctx.imageSmoothingEnabled=false;display.style.display='block';ready=true;loading.style.display='none';document.body.classList.add('playing');const hud=document.getElementById('hud');if(hud)hud.style.display='grid';fit()},
   async Java_pl_zb3_freej2me_bridge_shell_Shell_waitForAndDispatchEvents(lib,listener){
    const KeyEvent=await lib.pl.zb3.freej2me.bridge.shell.KeyEvent;
    const PointerEvent=await lib.pl.zb3.freej2me.bridge.shell.PointerEvent;
