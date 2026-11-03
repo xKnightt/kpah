@@ -18,8 +18,15 @@ const status=t=>{progress.textContent=t;console.log('[NQSHVN]',t)};
 const queue=new EventQueue();window.evtQueue=queue;window.soundEnabled=false;window.libmidi=null;window.libmedia=new LibMedia();
 const ctx=display.getContext('2d',{alpha:false,desynchronized:true});ctx.imageSmoothingEnabled=false;
 let ready=false;
-function fit(){if(!ready)return;const area=document.getElementById('screen-area');const r=area.getBoundingClientRect();const w=display.width||240,h=display.height||320;const s=Math.min(r.width/w,r.height/h);display.style.width=Math.max(1,Math.floor(w*s))+'px';display.style.height=Math.max(1,Math.floor(h*s))+'px';}
-window.addEventListener('resize',fit);window.visualViewport?.addEventListener('resize',fit);
+// Fill the available game viewport. Java ME now renders at 360x480, target 30 FPS.
+function fit(){
+ if(!ready)return;
+ const area=document.getElementById('screen-area');
+ display.style.width='100%';
+ display.style.height='100%';
+}
+window.addEventListener('resize',fit);
+window.visualViewport?.addEventListener('resize',fit);
 const codeFor=(key)=>({e:69,r:82,F1:112,F2:113,Enter:13,Backspace:8,ArrowUp:38,ArrowDown:40,ArrowLeft:37,ArrowRight:39})[key]||codeMap[key]||(key.length===1?key.toUpperCase().charCodeAt(0):0);
 const held=new Set();function push(key,down){const code=codeFor(key);if(!code)return;if(down&&held.has(key))return;if(!down&&!held.has(key))return;down?held.add(key):held.delete(key);queue.queueEvent({kind:down?'keydown':'keyup',args:[code,key.length===1?key:'\0',false,false]});}
 for(const b of document.querySelectorAll('[data-key]')){
@@ -30,6 +37,7 @@ for(const b of document.querySelectorAll('[data-key]')){
 window.addEventListener('keydown',e=>{if(e.target.matches?.('input,textarea'))return;const k=e.key.toLowerCase()==='e'?'e':e.key.toLowerCase()==='r'?'r':e.key;if(codeFor(k)){e.preventDefault();push(k,true)}});
 window.addEventListener('keyup',e=>{const k=e.key.toLowerCase()==='e'?'e':e.key.toLowerCase()==='r'?'r':e.key;if(codeFor(k)){e.preventDefault();push(k,false)}});
 window.addEventListener('blur',()=>{for(const k of [...held])push(k,false)});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)for(const k of [...held])push(k,false)});
 // Map touch on game canvas to MIDP pointer coordinates.
 let touchActive=false;function coords(e){let r=display.getBoundingClientRect();return{x:Math.max(0,Math.min(display.width-1,Math.floor((e.clientX-r.left)*display.width/r.width))),y:Math.max(0,Math.min(display.height-1,Math.floor((e.clientY-r.top)*display.height/r.height)))}};
 display.addEventListener('pointerdown',e=>{e.preventDefault();touchActive=true;display.setPointerCapture(e.pointerId);queue.queueEvent({kind:'pointerpressed',...coords(e)})});
@@ -67,7 +75,7 @@ try{
  const lib=await cheerpjRunLibrary('/app/freej2me-web.jar');
  status('3/3 • Khởi động NQSHVN…');
  const System=await lib.java.lang.System;
- await System.setProperty('freej2me.width','240');await System.setProperty('freej2me.height','320');
+ await System.setProperty('freej2me.width','360');await System.setProperty('freej2me.height','480');
  await System.setProperty('freej2me.fps','30');await System.setProperty('freej2me.sound','off');
  const FreeJ2ME=await lib.org.recompile.freej2me.FreeJ2ME;
  FreeJ2ME.main(['jar','/app/NQSHVN-FULL.jar']).catch(error);
